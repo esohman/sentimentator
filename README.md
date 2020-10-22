@@ -61,5 +61,6 @@ The demo dataset used in this project is taken from the OPUS corpus as presented
 The demo version of Sentimentator is located at http://sentimentator.it.helsinki.fi/
 
 Please let us know if you use Sentimentator for your own project. We would love to know more about it! Use:
-Öhman, E. and Kajava, K. 2018. Sentimentator: Gamifying Fine-grained Sentiment Annotation. In Digital Humanities
-in the Nordic Countries 2018. CEUR Workshop Proceedings.
+
+**Öhman, E. and Kajava, K. 2018. Sentimentator: Gamifying Fine-grained Sentiment Annotation. In Digital Humanities
+in the Nordic Countries 2018. CEUR Workshop Proceedings.**

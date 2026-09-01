@@ -1,32 +1,36 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>SENTIMENTATOR · EmoMap</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/normalize.css') }}" />
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/skeleton.css') }}" />
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/normalize.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/skeleton.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
 </head>
 <body>
 <div class="container">
-  <div class="row" style="text-align:right; margin-top:5%">
-    <p class="username" style="font-size:larger">Logged in as: <b>{{ username }}</b></p>
-    <p class="score" style="font-size:x-large; color:green">SCORE: <b>{{ score }}</b></p>
-    <a style="font-size:larger" href="/stats">Stats</a>
+  <div class="row emomap-header">
+    <div class="six columns"><strong>{{ study.title }}</strong></div>
+    <div class="six columns emomap-account">{{ username }} · <a href="{{ url_for('logout') }}">Log out</a></div>
   </div>
-  <div class="row" style="text-align:center"><h1>SENTIMENTATOR</h1><p class="emomap-subtitle">EmoMap wheel annotation</p></div>
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}<div class="emomap-flashes">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
-  {% endwith %}
-  {% include '_wheel_form.html' %}
 
-  <div class="row divide">
-    <div class="six columns offset-by-three" style="text-align:center; font-size:small"><a href="/language" class="button">BACK</a></div>
-    <div class="six columns offset-by-three" style="text-align:center"><a href="/logout" class="button">LOG OUT</a></div>
+  <div class="emomap-progress-wrap" aria-label="Study progress">
+    <div class="emomap-progress-text">{{ progress.completed + 1 }} of {{ progress.total }}</div>
+    <div class="emomap-progress-track"><div class="emomap-progress-bar" style="width: {{ progress.percent }}%"></div></div>
   </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="emomap-flashes">
+        {% for category, message in messages %}<p class="{{ category }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% include '_wheel_form.html' %}
 </div>
 </body>
 </html>

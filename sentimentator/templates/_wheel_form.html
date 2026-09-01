@@ -1,5 +1,7 @@
-<form id="annotation-form" method="post" action="{{ form_action }}" autocomplete="off">
-  <input type="hidden" name="sentence-id" value="{{ sentence_id }}">
+<form id="annotation-form" method="post" action="{{ form_action }}" autocomplete="off" data-trial-id="{{ trial.id }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="trial-id" value="{{ trial.id }}">
+  <input type="hidden" id="submission-id" name="submission-id" value="">
   <input type="hidden" id="wheel-points" name="wheel-points" value="">
   <input type="hidden" id="rt-ms" name="rt-ms" value="">
 
@@ -17,7 +19,7 @@
   <div class="emomap-layout">
     <div class="emomap-wheel-column">
       <div id="wheel-stage" class="wheel-stage" data-max-points="8" aria-label="Inverted Plutchik emotion wheel">
-        <img id="emotion-wheel" src="{{ url_for('static', filename='images/inverted_plutchik.jpeg') }}" alt="Inverted Plutchik wheel of emotion">
+        <img id="emotion-wheel" src="{{ url_for('static', filename='images/inverted_plutchik.jpeg') }}" alt="Inverted Plutchik wheel of emotion" draggable="false">
         <div id="wheel-markers" aria-hidden="true"></div>
       </div>
       <div class="wheel-controls">
@@ -48,7 +50,8 @@
   </div>
 
   <div class="row divide" style="text-align:center">
-    <input type="submit" id="submit" class="button button-primary" value="save" disabled>
+    <input type="submit" id="submit" class="button button-primary" value="SAVE & CONTINUE" disabled>
   </div>
+  <p class="autosave-note">Your unsent selections are kept in this browser if the page is refreshed.</p>
 </form>
 <script src="{{ url_for('static', filename='js/wheel.js') }}"></script>

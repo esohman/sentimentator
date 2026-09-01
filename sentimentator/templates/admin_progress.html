@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>EmoMap · Instructor Progress</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/normalize.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/skeleton.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body>
+<div class="container">
+  <h2>Instructor progress</h2>
+  {% if study %}<p>{{ study.title }} · version {{ study.version }}</p>{% endif %}
+  <table class="u-full-width">
+    <thead><tr><th>User</th><th>Participant ID</th><th>Arm</th><th>Progress</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.username }}</td><td>{{ row.participant_id }}</td><td>{{ row.arm }}</td>
+        <td>{{ row.completed }} / {{ row.total }}</td><td>{% if row.finished %}Complete{% else %}In progress{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <a href="{{ url_for('index') }}" class="button">BACK</a>
+</div>
+</body>
+</html>

@@ -296,3 +296,16 @@ input[id="both"]:checked + label { background:#6b3f8c; border-color:#6b3f8c; col
 #submit:disabled { opacity:.45; cursor:not-allowed; }
 .emomap-flashes { max-width:82rem; margin:1rem auto; padding:1rem 1.5rem; background:#fff4cf; border:1px solid #eed47d; border-radius:.4rem; }
 @media (max-width: 800px) { .emomap-layout { grid-template-columns:1fr; } .coarse-panel { max-width:560px; margin:0 auto; width:100%; } }
+
+/* === EmoMap hardening styles === */
+.emomap-header { margin-top: 3rem; margin-bottom: 1.5rem; }
+.emomap-account { text-align: right; }
+.emomap-home, .emomap-complete { text-align: center; margin-top: 5rem; }
+.emomap-progress-wrap { margin-bottom: 2rem; }
+.emomap-progress-text { text-align: right; font-size: 1.3rem; margin-bottom: .4rem; }
+.emomap-progress-track { width: 100%; height: 1rem; border: 1px solid #bbb; border-radius: .5rem; overflow: hidden; margin: 1rem 0 2rem; }
+.emomap-progress-bar { height: 100%; background: #555; min-width: 0; }
+.autosave-note { text-align: center; font-size: 1.2rem; opacity: .72; }
+.emomap-flashes .error { font-weight: 600; }
+.emomap-flashes .success { font-weight: 600; }
+@media (max-width: 550px) { .emomap-account { text-align: left; margin-top: .75rem; } }

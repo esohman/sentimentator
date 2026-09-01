@@ -2,31 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>SENTIMENTATOR · Stats</title>
+<title>EmoMap · Progress</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/normalize.css') }}" />
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/skeleton.css') }}" />
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/normalize.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/skeleton.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
 </head>
 <body>
-<div class="container">
-  <div class="row" style="text-align:right; margin-top:5%">
-    <p>Logged in as: <b>{{ username }}</b></p>
-    <p style="font-size:x-large; color:green">SCORE: <b>{{ score }}</b></p>
-  </div>
-  <div class="row" style="text-align:center"><h1>SENTIMENTATOR</h1></div>
-  <div class="container" style="font-size:larger; line-height:180%">
-    <p><b>Total annotations: {{ score }}</b></p>
-    <ul>
-      <li>Positive: <b>{{ positive }}</b></li>
-      <li>Negative: <b>{{ negative }}</b></li>
-      <li>Neither: <b>{{ neither }}</b></li>
-      <li>Both: <b>{{ both }}</b></li>
-      {% if legacy_neutral %}<li>Legacy neutral annotations: <b>{{ legacy_neutral }}</b></li>{% endif %}
-    </ul>
-  </div>
-  <div class="six columns offset-by-three" style="text-align:center"><a href="/" class="button">BACK</a></div>
+<div class="container emomap-home">
+  <h2>Progress</h2>
+  {% if study %}<p><strong>{{ study.title }}</strong></p>{% endif %}
+  <p>{{ username }}: {{ progress.completed }} / {{ progress.total }} submitted ({{ progress.percent }}%).</p>
+  <div class="emomap-progress-track"><div class="emomap-progress-bar" style="width: {{ progress.percent }}%"></div></div>
+  {% if not progress.finished %}<a href="{{ url_for('annotate') }}" class="button button-primary">RESUME</a>{% endif %}
+  <a href="{{ url_for('index') }}" class="button">BACK</a>
 </div>
 </body>
 </html>

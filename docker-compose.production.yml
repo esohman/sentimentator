@@ -1,0 +1,12 @@
+services:
+  sentimentator-emomap:
+    build: .
+    image: sentimentator:emomap
+    container_name: sentimentator-emomap
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5002:5000"
+    env_file:
+      - .env.production
+    volumes:
+      - /var/sentimentator-emomap-data:/var/sentimentator-data

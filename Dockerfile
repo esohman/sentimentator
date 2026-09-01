@@ -1,14 +1,16 @@
-FROM python:alpine
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY . /app 
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY . /app
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 5000
-
-# run the following command to import default EN data to DB
-RUN python3 data_import.py en data/en/en.txt data/en/ids.txt
-# run the following command to import test data to DB
-RUN python3 test_data_import.py en data/en_test/TOMATSsentimentator_split.txt data/en/ids.txt
-ENTRYPOINT ["python", "main.py"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["gunicorn", "--workers", "1", "--threads", "4", "--timeout", "60", "--bind", "0.0.0.0:5000", "sentimentator.app:app"]

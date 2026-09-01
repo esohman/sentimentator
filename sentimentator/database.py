@@ -1,202 +1,317 @@
 # -*- coding: utf-8 -*-
+"""Database operations for EmoMap Sentimentator."""
 
+from datetime import datetime, timezone
 import json
-import math
+import secrets
 
 from flask_login import current_user
-from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
+from sentimentator.emomap import (
+    SCHEME_VERSION,
+    WHEEL_VERSION,
+    VALID_COARSE,
+    build_schedule,
+    choose_arm,
+    parse_points,
+    stable_seed,
+)
 from sentimentator.meta import Status
 from sentimentator.model import (
-    db,
-    Language,
-    Sentence,
     Annotation,
-    TestSentence,
-    UserSeenSentence,
+    AnnotationPoint,
+    ParticipantStudy,
+    ParticipantStudyItem,
+    Study,
+    StudyItem,
+    db,
 )
 
 
-VALID_FINE_SENTIMENTS = ['ant', 'joy', 'sur', 'ang', 'fea', 'dis', 'tru', 'sad']
-VALID_COARSE = {'pos', 'neg', 'neither', 'both'}
-SCHEME = 'emomap-wheel-v2'
-
-# Geometry of Emily Öhman's supplied 960 x 720 inverted Plutchik image.
-# Raw normalized x/y coordinates are also stored, so this calibration can be
-# revised later without recollecting annotations.
-WHEEL_WIDTH = 960.0
-WHEEL_HEIGHT = 720.0
-WHEEL_CENTER_X = 480.0
-WHEEL_CENTER_Y = 368.0
-WHEEL_MAX_RADIUS = 320.0
-MAX_WHEEL_POINTS = 8
+def utcnow():
+    return datetime.now(timezone.utc)
 
 
 def init(app):
-    """Initiate data model. Database creation remains in the import scripts."""
     db.init_app(app)
 
 
-def get_username(user_id):
+def create_schema():
+    """Create missing tables. Safe to call repeatedly on a fresh/current schema."""
+    db.create_all()
+
+
+def get_username(_user_id=None):
     return current_user.user
 
 
-def get_score(user_id):
-    return Annotation.query.filter_by(_uid=user_id).count()
+def _study_identity(app_config=None):
+    from flask import current_app
+
+    cfg = app_config or current_app.config
+    return cfg["EMOMAP_STUDY_KEY"], str(cfg["EMOMAP_STUDY_VERSION"])
 
 
-def count(user_id, likeness):
-    q = Annotation.query.filter_by(_uid=user_id).filter(
-        Annotation._annotation.like(likeness)
+def get_active_study():
+    study_key, version = _study_identity()
+    return Study.query.filter_by(study_key=study_key, version=version, active=True).first()
+
+
+def _study_config(study):
+    try:
+        config = json.loads(study.config_json or "{}")
+    except json.JSONDecodeError:
+        config = {}
+    if not isinstance(config, dict):
+        config = {}
+    return config
+
+
+def get_or_create_participant_study(user_id):
+    """Create a participant record and immutable trial schedule on first use."""
+    study = get_active_study()
+    if study is None:
+        return None
+
+    participant = ParticipantStudy.query.filter_by(user_id=user_id, study_id=study.id).first()
+    if participant is not None:
+        return participant
+
+    config = _study_config(study)
+    seed = stable_seed(study.study_key, study.version, user_id, secrets.token_hex(8))
+    arm = choose_arm(config, seed)
+    min_lag = int(config.get("min_target_lag", 8))
+
+    items = StudyItem.query.filter_by(study_id=study.id, active=True).all()
+    ordered = build_schedule(items, arm=arm, seed=seed, min_target_lag=min_lag)
+    if not ordered:
+        return None
+
+    participant = ParticipantStudy(
+        user_id=user_id,
+        study_id=study.id,
+        arm=arm,
+        schedule_seed=seed,
     )
-    return q.count()
+    db.session.add(participant)
+    db.session.flush()
+
+    for trial_number, item in enumerate(ordered, start=1):
+        db.session.add(
+            ParticipantStudyItem(
+                participant_study_id=participant.id,
+                item_id=item.id,
+                trial_number=trial_number,
+            )
+        )
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # A concurrent first request may have created the schedule first.
+        db.session.rollback()
+        participant = ParticipantStudy.query.filter_by(
+            user_id=user_id, study_id=study.id
+        ).first()
+    return participant
 
 
-def get_seen_sentence(user_id):
-    return {
-        s._tsid for s in UserSeenSentence.query.filter_by(_uid=user_id).all()
-    }
+def get_current_trial(user_id):
+    participant = get_or_create_participant_study(user_id)
+    if participant is None:
+        return None, None
 
-
-def reset_user_sentences(user_id):
-    Annotation.query.filter_by(_uid=user_id).delete()
-    db.session.commit()
-
-
-def reset_user_test_sentences(user_id):
-    UserSeenSentence.query.filter_by(_uid=user_id).delete()
-    Annotation.query.filter_by(_uid=user_id).delete()
-    db.session.commit()
-
-
-def get_random_sentence(lang, user_id=None):
-    """Fetch a random sentence, excluding items already annotated by this user."""
-    language = Language.query.filter_by(_language=lang).first()
-    if language is None:
-        return None
-
-    query = Sentence.query.filter_by(_lid=language._lid)
-    if user_id is not None:
-        seen = db.session.query(Annotation._sid).filter(Annotation._uid == user_id)
-        query = query.filter(~Sentence._sid.in_(seen))
-    return query.order_by(func.random()).first()
-
-
-def get_test_sentence(lang, user_id, seen_tsids):
-    """Fetch an unseen test sentence and mark it as seen."""
-    language = Language.query.filter_by(_language=lang).first()
-    if language is None:
-        return None
-
-    sentence = (
-        TestSentence.query.filter_by(_lid=language._lid)
-        .filter(~TestSentence._tsid.in_(seen_tsids))
+    trial = (
+        ParticipantStudyItem.query
+        .filter_by(participant_study_id=participant.id, completed_at=None)
+        .order_by(ParticipantStudyItem.trial_number)
         .first()
     )
-    if sentence:
-        db.session.add(UserSeenSentence(_uid=user_id, _tsid=sentence._tsid))
+    if trial is None:
+        if participant.completed_at is None:
+            participant.completed_at = utcnow()
+            db.session.commit()
+        return participant, None
+
+    if trial.started_at is None:
+        trial.started_at = utcnow()
         db.session.commit()
-    return sentence
+    return participant, trial
 
 
-def _geometry(x_norm, y_norm):
-    px = x_norm * WHEEL_WIDTH
-    py = y_norm * WHEEL_HEIGHT
-    dx = px - WHEEL_CENTER_X
-    dy = WHEEL_CENTER_Y - py  # positive y points upward
-    radius_px = math.hypot(dx, dy)
-    radius = radius_px / WHEEL_MAX_RADIUS
-    angle = (math.degrees(math.atan2(dy, dx)) + 360.0) % 360.0
+def get_progress(user_id):
+    study = get_active_study()
+    if study is None:
+        return {"completed": 0, "total": 0, "percent": 0, "finished": False}
+
+    participant = ParticipantStudy.query.filter_by(user_id=user_id, study_id=study.id).first()
+    if participant is None:
+        total = StudyItem.query.filter_by(study_id=study.id, active=True).count()
+        return {"completed": 0, "total": total, "percent": 0, "finished": False}
+
+    total = ParticipantStudyItem.query.filter_by(participant_study_id=participant.id).count()
+    completed = ParticipantStudyItem.query.filter(
+        ParticipantStudyItem.participant_study_id == participant.id,
+        ParticipantStudyItem.completed_at.isnot(None),
+    ).count()
+    percent = int(round(100 * completed / total)) if total else 0
     return {
-        'x': round(x_norm, 6),
-        'y': round(y_norm, 6),
-        'px': round(px, 2),
-        'py': round(py, 2),
-        'dx': round(dx, 2),
-        'dy': round(dy, 2),
-        'radius': round(radius, 6),
-        'angle_deg': round(angle, 3),
+        "completed": completed,
+        "total": total,
+        "percent": percent,
+        "finished": bool(total and completed == total),
+        "arm": participant.arm,
     }
 
 
-def _parse_points(raw):
+def get_score(user_id):
+    return get_progress(user_id)["completed"]
+
+
+def _parse_rt(raw):
+    if raw in (None, ""):
+        return None
     try:
-        points = json.loads(raw)
-    except (TypeError, ValueError, json.JSONDecodeError):
+        value = int(raw)
+    except (TypeError, ValueError):
         return None
-
-    if not isinstance(points, list) or not (1 <= len(points) <= MAX_WHEEL_POINTS):
-        return None
-
-    clean = []
-    for point in points:
-        try:
-            x = float(point['x'])
-            y = float(point['y'])
-        except (KeyError, TypeError, ValueError):
-            return None
-        if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
-            return None
-        clean.append(_geometry(x, y))
-    return clean
+    return value if value >= 0 else None
 
 
-def save_annotation(req, user_id, test=False):
-    """Validate and save an EmoMap wheel annotation.
+def save_annotation(req, user_id):
+    """Validate and atomically save one wheel annotation.
 
-    The existing Annotation schema is retained. The complete multi-point wheel
-    annotation is JSON-encoded in ``annotation``; the first point's radial
-    distance is mirrored in the legacy ``intensity`` column.
+    The transaction inserts the Annotation row, inserts all AnnotationPoint rows,
+    and marks the scheduled trial complete.  Either all three operations commit
+    or none do.  participant_study_item_id and submission_id are independently
+    unique, making browser retries/double-clicks idempotent.
     """
     try:
-        sentence_id = int(req.form.get('sentence-id', ''))
+        trial_id = int(req.form.get("trial-id", ""))
     except (TypeError, ValueError):
-        return Status.ERR_SENTENCE
+        return Status.ERR_TRIAL
 
-    item_model = TestSentence if test else Sentence
-    sentence = db.session.get(item_model, sentence_id)
-    if sentence is None:
-        return Status.ERR_SENTENCE
+    submission_id = (req.form.get("submission-id") or "").strip()
+    if not submission_id or len(submission_id) > 64:
+        return Status.ERR_SUBMISSION
 
-    # Normal annotation items should never be saved twice accidentally. Test
-    # items retain the existing UserSeenSentence mechanism because test IDs can
-    # overlap with ordinary Sentence IDs in the legacy schema.
-    if not test:
-        existing = Annotation.query.filter_by(_uid=user_id, _sid=sentence_id).first()
-        if existing is not None:
-            return Status.OK
-
-    coarse = req.form.get('sentiment')
+    coarse = req.form.get("sentiment")
     if coarse not in VALID_COARSE:
         return Status.ERR_COARSE
 
-    points = _parse_points(req.form.get('wheel-points', ''))
-    if points is None:
+    try:
+        points = parse_points(req.form.get("wheel-points", ""))
+    except ValueError:
         return Status.ERR_WHEEL
 
-    try:
-        rt_ms = int(req.form.get('rt-ms', ''))
-        if rt_ms < 0:
-            rt_ms = None
-    except (TypeError, ValueError):
-        rt_ms = None
+    participant, current_trial = get_current_trial(user_id)
+    if participant is None:
+        return Status.ERR_STUDY
 
-    annotation = {
-        'scheme': SCHEME,
-        'coarse': coarse,
-        'wheel_points': points,
-        'association_count': len(points),
-        'rt_ms': rt_ms,
-        'item_type': 'test_sentence' if test else 'sentence',
-    }
+    trial = db.session.get(ParticipantStudyItem, trial_id)
+    if (
+        trial is None
+        or trial.participant_study_id != participant.id
+        or trial.item.study_id != participant.study_id
+    ):
+        return Status.ERR_TRIAL
 
-    intensity = points[0]['radius']
-    row = Annotation(
+    # Already saved: browser retransmission or a double click. Treat as success.
+    if trial.completed_at is not None or trial.annotation is not None:
+        return Status.OK
+
+    # Prevent a manipulated or stale browser tab from submitting a later trial.
+    if current_trial is None or current_trial.id != trial.id:
+        return Status.ERR_TRIAL
+
+    annotation = Annotation(
+        participant_study_item_id=trial.id,
+        item_id=trial.item_id,
         user_id=user_id,
-        sentence_id=sentence_id,
-        annotation=json.dumps(annotation, ensure_ascii=False),
-        intensity=intensity,
+        submission_id=submission_id,
+        coarse_label=coarse,
+        association_count=len(points),
+        response_time_ms=_parse_rt(req.form.get("rt-ms")),
+        scheme_version=SCHEME_VERSION,
+        wheel_version=WHEEL_VERSION,
     )
-    db.session.add(row)
-    db.session.commit()
+    db.session.add(annotation)
+    db.session.flush()
+
+    for index, point in enumerate(points, start=1):
+        db.session.add(
+            AnnotationPoint(
+                annotation_id=annotation.id,
+                point_order=index,
+                x_norm=point["x_norm"],
+                y_norm=point["y_norm"],
+                canonical_x=point["canonical_x"],
+                canonical_y=point["canonical_y"],
+                dx=point["dx"],
+                dy=point["dy"],
+                radius=point["radius"],
+                angle_deg=point["angle_deg"],
+            )
+        )
+
+    trial.completed_at = utcnow()
+
+    try:
+        db.session.flush()
+        remaining = ParticipantStudyItem.query.filter(
+            ParticipantStudyItem.participant_study_id == participant.id,
+            ParticipantStudyItem.completed_at.is_(None),
+        ).count()
+        if remaining == 0:
+            participant.completed_at = utcnow()
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existing_trial = Annotation.query.filter_by(
+            participant_study_item_id=trial_id
+        ).first()
+        if existing_trial is not None and existing_trial.user_id == user_id:
+            return Status.OK
+        existing_submission = Annotation.query.filter_by(
+            submission_id=submission_id
+        ).first()
+        if (
+            existing_submission is not None
+            and existing_submission.user_id == user_id
+            and existing_submission.participant_study_item_id == trial_id
+        ):
+            return Status.OK
+        return Status.ERR_DUPLICATE
+
     return Status.OK
+
+
+def admin_progress_rows():
+    """Return instructor-facing completion rows for the configured study."""
+    study = get_active_study()
+    if study is None:
+        return []
+
+    rows = []
+    for participant in ParticipantStudy.query.filter_by(study_id=study.id).all():
+        total = ParticipantStudyItem.query.filter_by(
+            participant_study_id=participant.id
+        ).count()
+        completed = ParticipantStudyItem.query.filter(
+            ParticipantStudyItem.participant_study_id == participant.id,
+            ParticipantStudyItem.completed_at.isnot(None),
+        ).count()
+        rows.append(
+            {
+                "participant_id": participant.user_id,
+                "username": participant.user._user,
+                "arm": participant.arm,
+                "completed": completed,
+                "total": total,
+                "finished": completed == total and total > 0,
+                "started_at": participant.started_at,
+                "completed_at": participant.completed_at,
+            }
+        )
+    return sorted(rows, key=lambda row: row["username"].lower())

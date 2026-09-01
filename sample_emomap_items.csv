@@ -1,10 +1,10 @@
-language,target,context
-en,fire,fire
-en,fire,The fire destroyed the entire house.
-en,fire,We sat around the fire drinking coffee.
-en,fire,The company decided to fire him.
-en,bear,bear
-en,bear,I cannot bear the thought of losing her.
-en,bear,The bear wandered through the forest.
-en,surprise,surprise
-en,escape,escape
+item_key,language,target,text,condition,sense,source,target_group,base_item_key,prime_arm,active,selection_reason
+fire_iso,en,fire,fire,isolated,,legacy,fire,fire,,,legacy high BOTH/disagreement
+fire_destroy,en,fire,The fire destroyed the entire house.,context,destructive,crafted,fire,fire,prime_negative,1,negative contextualization
+fire_warm,en,fire,We sat beside the fire all evening.,context,hearth/comfort,crafted,fire,fire,prime_positive,1,positive contextualization
+fire_job,en,fire,The company decided to fire him.,context,dismissal,crafted,fire,fire,,1,polysemy
+bear_iso,en,bear,bear,isolated,,legacy,bear,bear,,1,legacy highest entropy
+bear_animal,en,bear,The bear wandered through the forest.,context,animal,crafted,bear,bear,prime_neutral,1,sense contrast
+bear_endure,en,bear,I cannot bear the thought of losing her.,context,endure,crafted,bear,bear,prime_negative,1,sense contrast
+hope_iso,en,hope,hope,isolated,,legacy,hope,hope,,1,positive anchor
+murder_iso,en,murder,murder,isolated,,legacy,murder,murder,,1,negative anchor

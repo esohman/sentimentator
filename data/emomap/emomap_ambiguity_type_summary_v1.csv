@@ -1,0 +1,7 @@
+ambiguity_type,context_mechanism,n_targets,targets
+contextual_valence_shift,evaluative_reframing,17,"escape, stare, fire, surprise, hide, home, shock, wild, risk, challenge, change, control, secret, tension, silence, alone, grow"
+polysemy,sense_disambiguation,13,"bear, strike, promise, cold, fall, curious, charge, fine, sharp, power, break, crush, party"
+intrinsic_ambivalence,mixed_affect_resolution,8,"awe, nostalgia, thrill, pride, mystery, sacrifice, pity, farewell"
+event_inherited_affect,event_affect_inheritance,6,"happen, morning, help, time, continue, memory"
+anchor_control,stability_control,4,"hope, friend, murder, depressed"
+register_shift,register_activation,2,"sick, cool"

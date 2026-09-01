@@ -1,0 +1,54 @@
+<form id="annotation-form" method="post" action="{{ form_action }}" autocomplete="off">
+  <input type="hidden" name="sentence-id" value="{{ sentence_id }}">
+  <input type="hidden" id="wheel-points" name="wheel-points" value="">
+  <input type="hidden" id="rt-ms" name="rt-ms" value="">
+
+  <div class="row" style="text-align:center">
+    <p class="info">Select the emotional associations of the highlighted target in this context.</p>
+    <p class="sentence emomap-stimulus">
+      {{ prefix }}<mark>{{ target }}</mark>{{ suffix }}
+    </p>
+    <p class="emomap-instruction">
+      Click once on the wheel for each distinct emotional association you perceive (up to eight).
+      Then choose exactly one overall association: Positive, Negative, Neither, or Both.
+    </p>
+  </div>
+
+  <div class="emomap-layout">
+    <div class="emomap-wheel-column">
+      <div id="wheel-stage" class="wheel-stage" data-max-points="8" aria-label="Inverted Plutchik emotion wheel">
+        <img id="emotion-wheel" src="{{ url_for('static', filename='images/inverted_plutchik.jpeg') }}" alt="Inverted Plutchik wheel of emotion">
+        <div id="wheel-markers" aria-hidden="true"></div>
+      </div>
+      <div class="wheel-controls">
+        <button type="button" id="undo-point" class="button" disabled>Undo last</button>
+        <button type="button" id="clear-points" class="button" disabled>Clear all</button>
+      </div>
+      <p id="selection-status" class="requirement-status" aria-live="polite">No associations selected</p>
+    </div>
+
+    <fieldset class="coarse-panel">
+      <legend>Overall association <strong>(required)</strong></legend>
+      <p>Choose this independently from your wheel placements.</p>
+
+      <input type="radio" name="sentiment" id="pos" value="pos" required>
+      <label for="pos" class="button button-pos">Positive</label>
+
+      <input type="radio" name="sentiment" id="neg" value="neg" required>
+      <label for="neg" class="button button-neg">Negative</label>
+
+      <input type="radio" name="sentiment" id="neither" value="neither" required>
+      <label for="neither" class="button button-neither">Neither</label>
+
+      <input type="radio" name="sentiment" id="both" value="both" required>
+      <label for="both" class="button button-both">Both</label>
+
+      <p id="coarse-status" class="requirement-status" aria-live="polite">No overall association selected.</p>
+    </fieldset>
+  </div>
+
+  <div class="row divide" style="text-align:center">
+    <input type="submit" id="submit" class="button button-primary" value="save" disabled>
+  </div>
+</form>
+<script src="{{ url_for('static', filename='js/wheel.js') }}"></script>

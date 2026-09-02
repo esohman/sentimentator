@@ -141,28 +141,88 @@ def get_current_trial(user_id):
 
 
 def get_progress(user_id):
+    """Return overall study progress plus a cosmetic fixed-size subset progress.
+
+    ``subset_size`` is read from Study.config_json and defaults to 9.  Subsets
+    are presentation chunks only: they do not alter the participant's stored
+    schedule, experimental arm, or ordering constraints.
+    """
     study = get_active_study()
     if study is None:
-        return {"completed": 0, "total": 0, "percent": 0, "finished": False}
+        return {
+            "completed": 0,
+            "total": 0,
+            "percent": 0,
+            "current": 0,
+            "current_percent": 0,
+            "finished": False,
+            "subset": {"number": 0, "current": 0, "total": 0, "percent": 0},
+        }
 
-    participant = ParticipantStudy.query.filter_by(user_id=user_id, study_id=study.id).first()
+    config = _study_config(study)
+    try:
+        subset_size = int(config.get("subset_size", 9))
+    except (TypeError, ValueError):
+        subset_size = 9
+    subset_size = max(1, subset_size)
+
+    participant = ParticipantStudy.query.filter_by(
+        user_id=user_id, study_id=study.id
+    ).first()
+
     if participant is None:
         total = StudyItem.query.filter_by(study_id=study.id, active=True).count()
-        return {"completed": 0, "total": total, "percent": 0, "finished": False}
+        completed = 0
+        arm = None
+    else:
+        total = ParticipantStudyItem.query.filter_by(
+            participant_study_id=participant.id
+        ).count()
+        completed = ParticipantStudyItem.query.filter(
+            ParticipantStudyItem.participant_study_id == participant.id,
+            ParticipantStudyItem.completed_at.isnot(None),
+        ).count()
+        arm = participant.arm
 
-    total = ParticipantStudyItem.query.filter_by(participant_study_id=participant.id).count()
-    completed = ParticipantStudyItem.query.filter(
-        ParticipantStudyItem.participant_study_id == participant.id,
-        ParticipantStudyItem.completed_at.isnot(None),
-    ).count()
+    finished = bool(total and completed == total)
     percent = int(round(100 * completed / total)) if total else 0
-    return {
+
+    # On the annotation screen users are looking at the next/current item, so
+    # expose a position-based counter in addition to the strict completed count.
+    if total:
+        current = total if finished else min(completed + 1, total)
+        current_percent = int(round(100 * current / total))
+
+        subset_number = ((current - 1) // subset_size) + 1
+        subset_start = (subset_number - 1) * subset_size
+        subset_total = min(subset_size, total - subset_start)
+        subset_current = current - subset_start
+        subset_percent = int(round(100 * subset_current / subset_total))
+    else:
+        current = 0
+        current_percent = 0
+        subset_number = 0
+        subset_total = 0
+        subset_current = 0
+        subset_percent = 0
+
+    result = {
         "completed": completed,
         "total": total,
         "percent": percent,
-        "finished": bool(total and completed == total),
-        "arm": participant.arm,
+        "current": current,
+        "current_percent": current_percent,
+        "finished": finished,
+        "subset": {
+            "number": subset_number,
+            "current": subset_current,
+            "total": subset_total,
+            "percent": subset_percent,
+        },
     }
+    if arm is not None:
+        result["arm"] = arm
+    return result
 
 
 def get_score(user_id):

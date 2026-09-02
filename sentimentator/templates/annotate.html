@@ -17,9 +17,26 @@
     <div class="six columns emomap-account">{{ username }} · <a href="{{ url_for('logout') }}">Log out</a></div>
   </div>
 
-  <div class="emomap-progress-wrap" aria-label="Study progress">
-    <div class="emomap-progress-text">{{ progress.completed + 1 }} of {{ progress.total }}</div>
-    <div class="emomap-progress-track"><div class="emomap-progress-bar" style="width: {{ progress.percent }}%"></div></div>
+  <div class="emomap-progress-stack">
+    <div class="emomap-progress-wrap emomap-progress-overall" aria-label="Overall progress">
+      <div class="emomap-progress-row">
+        <span class="emomap-progress-label">Overall progress</span>
+        <span class="emomap-progress-text">{{ progress.current }} / {{ progress.total }}</span>
+      </div>
+      <div class="emomap-progress-track">
+        <div class="emomap-progress-bar" style="width: {{ progress.current_percent }}%"></div>
+      </div>
+    </div>
+
+    <div class="emomap-progress-wrap emomap-progress-subset" aria-label="Subset progress">
+      <div class="emomap-progress-row">
+        <span class="emomap-progress-label">Subset progress</span>
+        <span class="emomap-progress-text">{{ progress.subset.current }} / {{ progress.subset.total }}</span>
+      </div>
+      <div class="emomap-progress-track">
+        <div class="emomap-progress-bar" style="width: {{ progress.subset.percent }}%"></div>
+      </div>
+    </div>
   </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}

@@ -309,3 +309,11 @@ input[id="both"]:checked + label { background:#6b3f8c; border-color:#6b3f8c; col
 .emomap-flashes .error { font-weight: 600; }
 .emomap-flashes .success { font-weight: 600; }
 @media (max-width: 550px) { .emomap-account { text-align: left; margin-top: .75rem; } }
+
+.emomap-progress-stack { margin-bottom: 2rem; }
+.emomap-progress-stack .emomap-progress-wrap { margin-bottom: 1rem; }
+.emomap-progress-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.emomap-progress-label { font-size: 1.25rem; font-weight: 600; }
+.emomap-progress-row .emomap-progress-text { text-align: right; margin-bottom: 0; }
+.emomap-progress-overall .emomap-progress-track { height: .65rem; margin: .45rem 0 .9rem; }
+.emomap-progress-subset .emomap-progress-track { height: 1rem; margin: .45rem 0 .8rem; }
